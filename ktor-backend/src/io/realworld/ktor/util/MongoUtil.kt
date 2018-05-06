@@ -1,4 +1,4 @@
-package io.realworld.ktor
+package io.realworld.ktor.util
 
 import com.fasterxml.jackson.core.*
 import com.fasterxml.jackson.databind.*
@@ -13,6 +13,12 @@ open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.
     data
 ) {
     var _id: BsonObjectId? by Extra { null }
+    fun extract(vararg props: KProperty1<T, *>): BsonDocument {
+        val out = LinkedHashMap<String, Any?>()
+        for (prop in props) out[prop.name] = this.extra[prop.name]
+        return out
+    }
+
     override fun toString(): String = "${this::class.simpleName}($extra)"
 }
 
@@ -60,6 +66,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
 
     inner class Expr {
         infix fun KProperty1<T, *>.eq(other: Any?) = mapOf(this.name to mapOf("\$eq" to other))
+        infix fun Any?.and(other: Any?) = mapOf("\$and" to listOf(this, other))
     }
 
     private val expr = Expr()
@@ -72,6 +79,19 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         return result.map { gen(it) }
     }
 
+    suspend fun findOneOrNull(query: Expr.() -> BsonDocument): T? = find(query).firstOrNull()
+    suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: error("Can't find item")
+    suspend fun update(item: T, vararg props: KMutableProperty1<T, *>) {
+        collection.update(
+            MongoUpdate(
+                mapOf(
+                    "\$set" to props.associate { it.name to item.extra[it.name] }
+                )
+            ) {
+                "_id" eq item._id
+            }
+        )
+    }
 }
 
 fun <T : MongoEntity<T>> MongoDBCollection.typed(gen: (BsonDocument) -> T): MongoDBTypedCollection<T> {

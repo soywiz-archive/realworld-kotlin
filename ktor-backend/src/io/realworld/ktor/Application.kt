@@ -1,8 +1,8 @@
 package io.realworld.ktor
 
+import com.auth0.jwt.*
+import com.auth0.jwt.algorithms.*
 import com.soywiz.io.ktor.client.mongodb.*
-import com.soywiz.io.ktor.client.mongodb.bson.*
-import com.soywiz.io.ktor.client.util.*
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.*
@@ -10,9 +10,10 @@ import io.ktor.features.*
 import io.ktor.jackson.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.realworld.route.*
+import io.realworld.ktor.model.*
+import io.realworld.ktor.route.*
+import io.realworld.ktor.util.*
 import kotlinx.coroutines.experimental.*
-import java.security.*
 
 fun main(args: Array<String>): Unit {
 
@@ -24,6 +25,26 @@ fun main(args: Array<String>): Unit {
 
     io.ktor.server.netty.DevelopmentEngine.main(args)
 }
+
+object MyJWT {
+    private val secret = "mysupersecret"
+    private val audience = "conduit-server"
+    private val issuer = "http://127.0.0.1/"
+    private val algorithm = Algorithm.HMAC256(secret)
+
+    val verifier = JWT
+        .require(algorithm)
+        .withAudience(audience)
+        .withIssuer(issuer)
+        .build()
+
+    fun sign(name: String): String = JWT.create()
+        .withClaim("name", name)
+        .withAudience(audience)
+        .withIssuer(issuer)
+        .sign(algorithm)
+}
+
 
 /**
  * https://www.getpostman.com/
@@ -47,7 +68,10 @@ fun Application.main() {
         }
         install(Authentication) {
             this.jwt {
-                this.realm
+                this.verifier(MyJWT.verifier)
+                this.validate {
+                    UserIdPrincipal(it.payload.getClaim("name").asString())
+                }
             }
         }
 
@@ -64,21 +88,6 @@ fun Application.main() {
             }
         }
     }
-}
-
-fun hashPassword(password: String): String =
-    MessageDigest.getInstance("MD5").digest(password.toByteArray(Charsets.UTF_8)).hex
-
-class PostUser(val user: PostUserUser)
-class PostUserUser(val username: String, val email: String, val password: String)
-
-class User(data: BsonDocument = mapOf()) : MongoEntity<User>(data) {
-    var email: String? by Extra { null }
-    //var token: String? by Extra { null }
-    var username: String? by Extra { null }
-    var passwordHash: String? by Extra { null }
-    var bio: String? by Extra { null }
-    var image: String by Extra { "dummy.png" }
 }
 
 

@@ -1,4 +1,4 @@
-package io.realworld.ktor
+package io.realworld.ktor.util
 
 import com.soywiz.io.ktor.client.mongodb.bson.*
 import kotlin.reflect.*
