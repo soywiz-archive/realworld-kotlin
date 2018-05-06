@@ -7,6 +7,7 @@ import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.*
 import io.ktor.features.*
+import io.ktor.http.*
 import io.ktor.jackson.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -72,6 +73,11 @@ fun Application.main() {
                 this.validate {
                     UserIdPrincipal(it.payload.getClaim("name").asString())
                 }
+            }
+        }
+        install(StatusPages) {
+            exception<UnauthorizedException> { cause ->
+                call.respond(HttpStatusCode.Unauthorized)
             }
         }
 

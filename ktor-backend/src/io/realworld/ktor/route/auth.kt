@@ -10,11 +10,8 @@ import io.realworld.ktor.*
 import io.realworld.ktor.model.*
 import io.realworld.ktor.util.*
 
-fun createTokenForUser(username: String): String {
-    return MyJWT.sign(username)
-}
-
 fun Route.routeAuth(users: MongoDBTypedCollection<User>) {
+    // Register
     post("/users") {
         val post = call.receive<PostUser>()
         try {
@@ -35,30 +32,30 @@ fun Route.routeAuth(users: MongoDBTypedCollection<User>) {
         }
     }
 
+    // Login
     post("/users/login") {
         val post = call.receive<UsersLoginPost>()
-        try {
-            val user = users.findOne {
-                (User::email eq post.user.email) and
-                        (User::passwordHash eq User.hashPassword(post.user.password))
-            }
-            call.respond(HttpStatusCode.OK, user.userMapWithToken())
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            call.respond(HttpStatusCode.Unauthorized, "unauthorized")
-        }
+        val user = users.findOneOrNull {
+            (User::email eq post.user.email) and
+                    (User::passwordHash eq User.hashPassword(post.user.password))
+        } ?: unauthorized()
+        call.respond(HttpStatusCode.OK, user.userMapWithToken())
     }
 
     authenticate {
+        // Current User
         get("/user") {
-            val user = users.findOne { User::username eq call.getLoggedUserName() }
+            val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
             call.respond(HttpStatusCode.OK, user.userMapWithToken())
         }
+        // Update User
         put("/user") {
-            val user = users.findOne { User::username eq call.getLoggedUserName() }
+            val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
             val params = call.receive<Map<String, Any?>>()
             val updatableFields = listOf(User::email, User::bio, User::image)
-            val updatedFields = updatableFields.associate { it to Dynamic { params["user"][it.name] } }
+            val updatedFields = updatableFields
+                .associate { it to Dynamic { params["user"][it.name] } }
+                .filterValues { it != null }
             for ((prop, value) in updatedFields) user.extra[prop.name] = value
             users.update(user, *updatedFields.keys.toTypedArray())
             call.respond(HttpStatusCode.OK, user.userMapWithToken())
@@ -74,7 +71,7 @@ private fun User.userMapWithToken() = mapOf(
         User::username,
         User::bio,
         User::image
-    ) + mapOf("token" to createTokenForUser(username!!))
+    ) + mapOf("token" to MyJWT.sign(username!!))
 )
 
 class PostUser(val user: PostUserUser)
