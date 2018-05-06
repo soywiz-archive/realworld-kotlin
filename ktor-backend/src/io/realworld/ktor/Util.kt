@@ -1,4 +1,4 @@
-package io.realworld
+package io.realworld.ktor
 
 import com.soywiz.io.ktor.client.mongodb.bson.*
 import kotlin.reflect.*
@@ -6,7 +6,8 @@ import kotlin.reflect.*
 interface Extra {
     val extra: ExtraData
 
-    class Mixin(override val extra: ExtraData = ExtraData()) : Extra {
+    class Mixin(override val extra: ExtraData = ExtraData()) :
+        Extra {
         constructor(data: BsonDocument) : this(ExtraData(data))
     }
 }

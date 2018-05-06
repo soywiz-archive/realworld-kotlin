@@ -1,4 +1,4 @@
-package io.realworld
+package io.realworld.ktor
 
 import com.fasterxml.jackson.core.*
 import com.fasterxml.jackson.databind.*
@@ -9,14 +9,16 @@ import com.soywiz.io.ktor.client.mongodb.bson.*
 import kotlin.reflect.*
 
 @JsonSerialize(using = MongoEntitySerializer::class)
-open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.Mixin(data) {
+open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.Mixin(
+    data
+) {
     var _id: BsonObjectId? by Extra { null }
     override fun toString(): String = "${this::class.simpleName}($extra)"
 }
 
 class MongoEntitySerializer : StdSerializer<MongoEntity<*>>(MongoEntity::class.java) {
     override fun serialize(value: MongoEntity<*>, jgen: JsonGenerator, provider: SerializerProvider) {
-        jgen.writeObject(value.extra)
+        jgen.writeObject(value.extra.toMap() - MongoEntity<*>::_id.name)
     }
 }
 
