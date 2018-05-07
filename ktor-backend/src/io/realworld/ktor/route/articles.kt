@@ -12,23 +12,28 @@ import io.realworld.ktor.util.*
 import java.util.*
 
 fun Route.routeArticles(db: Db) {
-    get("/articles/{slug}") {
-        val slug = call.parameters["slug"]
-        val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound()
-        call.respond(mapOf("article" to article))
-    }
+
     route("/articles") {
-        param("tag") {
-            get {
-                val tag = call.parameters["tag"]
-                val articles = db.articles.find { Article::tagList contains tag }
-                call.respond(
-                    mapOf(
-                        "articles" to articles,
-                        "articlesCount" to articles.size
-                    )
-                )
+        get("/{slug}") {
+            val slug = call.parameters["slug"]
+            val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound()
+            call.respond(mapOf("article" to article))
+        }
+        get {
+            val articles = db.articles.find {
+                when {
+                    call.parameters["favorited"] != null -> Article::author eq call.parameters["favorited"]
+                    call.parameters["author"] != null -> Article::author eq call.parameters["author"]
+                    call.parameters["tag"] != null -> Article::tagList contains call.parameters["tag"]
+                    else -> all()
+                }
             }
+            call.respond(
+                mapOf(
+                    "articles" to articles,
+                    "articlesCount" to articles.size
+                )
+            )
         }
     }
 
@@ -50,3 +55,15 @@ fun Route.routeArticles(db: Db) {
         }
     }
 }
+
+/*
+private suspend fun ApplicationCall.respondArticles(db: Db, filter: MongoDBTypedCollection<Article>.Expr.() -> BsonDocument) {
+    val articles = db.articles.find { filter() }
+    respond(
+        mapOf(
+            "articles" to articles,
+            "articlesCount" to articles.size
+        )
+    )
+}
+*/
