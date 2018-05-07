@@ -80,14 +80,9 @@ fun Application.main() {
         routing {
             routeAuth(db)
             routeArticles(db)
+            routeTags(db)
             get("/") {
-                val user = User().apply {
-                    username = "demo2"
-                    email = "demo@demo.demo2"
-                }
-                //users.insert(user)
-                //val users = users.find { User::username eq "demo2" }
-                call.respondText(mapOf("user" to user).toJson())
+                call.respond(mapOf("ok" to "ok"))
             }
         }
     }

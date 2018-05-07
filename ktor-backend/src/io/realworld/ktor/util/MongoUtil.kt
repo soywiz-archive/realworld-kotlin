@@ -137,6 +137,47 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
             }
         )
     }
+
+    suspend fun <R> distinct(
+        field: KProperty1<T, List<R?>?>,
+        readConcern: BsonDocument? = null,
+        collation: BsonDocument? = null,
+        query: Expr.() -> BsonDocument = { all() }
+    ): List<R> = distinct(field, readConcern, collation, false, query) as List<R>
+
+    /**
+     * https://docs.mongodb.com/v3.4/reference/command/distinct/
+     */
+    suspend fun distinct(
+        field: KProperty1<T, *>,
+        readConcern: BsonDocument? = null,
+        collation: BsonDocument? = null,
+        @Suppress("UNUSED_PARAMETER") dummy: Boolean = false,
+        query: Expr.() -> BsonDocument = { all() }
+    ): List<*> {
+        // Reply(packet=MongoPacket(opcode=1, requestId=93, responseTo=2, payload=SIZE(191)), responseFlags=8, cursorID=0, startingFrom=0,
+        // documents=[{waitedMS=0, values=[dragons, training], stats={n=2, nscanned=0, nscannedObjects=2, timems=0, planSummary=COLLSCAN}, ok=1.0}])
+        //{
+        //    waitedMS = 0,
+        //    values = [dragons, training],
+        //    stats = {
+        //        n = 2,
+        //        nscanned = 0,
+        //        nscannedObjects = 2,
+        //        timems = 0,
+        //        planSummary = COLLSCAN
+        //    },
+        //    ok = 1.0
+        //}
+        val result = collection.db.runCommand {
+            putNotNull("distinct", collection.collection)
+            putNotNull("key", field.name)
+            putNotNull("query", query(expr))
+            putNotNull("readConcern", readConcern)
+            putNotNull("collation", collation)
+        }.checkErrors()
+        return Dynamic { result.firstDocument["values"].list }
+    }
 }
 
 fun <T : MongoEntity<T>> MongoDBCollection.typed(gen: (BsonDocument) -> T): MongoDBTypedCollection<T> {
