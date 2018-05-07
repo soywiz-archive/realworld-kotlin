@@ -57,11 +57,7 @@ object MyJWT {
 @Suppress("unused")
 fun Application.main() {
     runBlocking {
-        val mongo = MongoDB()
-        val db = mongo["realworld-sample1"]
-        val users = db["users"].typed { User(it) }
-            .ensureIndex(User::email to +1, unique = true)
-            .ensureIndex(User::username to +1, unique = true)
+        val db = Db()
 
         install(ContentNegotiation) {
             jackson {
@@ -76,13 +72,14 @@ fun Application.main() {
             }
         }
         install(StatusPages) {
-            exception<UnauthorizedException> { cause ->
-                call.respond(HttpStatusCode.Unauthorized)
+            exception<HttpStatusException> { cause ->
+                call.respond(cause.status)
             }
         }
 
         routing {
-            routeAuth(users)
+            routeAuth(db)
+            routeArticles(db)
             get("/") {
                 val user = User().apply {
                     username = "demo2"
@@ -90,20 +87,8 @@ fun Application.main() {
                 }
                 //users.insert(user)
                 //val users = users.find { User::username eq "demo2" }
-                call.respondText(mapOf("user" to users).toJson())
+                call.respondText(mapOf("user" to user).toJson())
             }
         }
     }
 }
-
-
-/*
-//@Serializable
-data class User(
-    val email: String,
-    val token: String,
-    val username: String,
-    val bio: String,
-    val image: String
-)
-*/

@@ -1,5 +1,8 @@
 package io.realworld.ktor.util
 
-class UnauthorizedException : RuntimeException()
+import io.ktor.http.*
 
-fun unauthorized(): Nothing = throw UnauthorizedException()
+class HttpStatusException(val status: HttpStatusCode) : RuntimeException()
+
+fun unauthorized(): Nothing = throw HttpStatusException(HttpStatusCode.Unauthorized)
+fun notFound(): Nothing = throw HttpStatusException(HttpStatusCode.NotFound)

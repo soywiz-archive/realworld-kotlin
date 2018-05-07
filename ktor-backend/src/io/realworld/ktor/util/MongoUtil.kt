@@ -19,12 +19,18 @@ open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.
         return out
     }
 
+    fun ensureNotNull(vararg props: KProperty1<T, *>): T = (this as T).apply {
+        for (prop in props) {
+            if (extra[prop.name] == null) throw kotlin.NullPointerException()
+        }
+    }
+
     override fun toString(): String = "${this::class.simpleName}($extra)"
 }
 
 class MongoEntitySerializer : StdSerializer<MongoEntity<*>>(MongoEntity::class.java) {
     override fun serialize(value: MongoEntity<*>, jgen: JsonGenerator, provider: SerializerProvider) {
-        jgen.writeObject(value.extra.toMap() - MongoEntity<*>::_id.name)
+        jgen.writeObject(value.extra.toMutableMap().apply { this.remove(MongoEntity<*>::_id.name) })
     }
 }
 
@@ -65,12 +71,40 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
     }
 
     inner class Expr {
-        infix fun KProperty1<T, *>.eq(other: Any?) = mapOf(this.name to mapOf("\$eq" to other))
-        infix fun Any?.and(other: Any?) = mapOf("\$and" to listOf(this, other))
+        infix fun KProperty1<T, *>.eq(value: Any?):  BsonDocument = mapOf(this.name to mapOf("\$eq" to value))
+        infix fun KProperty1<T, *>.ne(value: Any?):  BsonDocument = mapOf(this.name to mapOf("\$ne" to value))
+        infix fun KProperty1<T, *>.gt(value: Any?):  BsonDocument = mapOf(this.name to mapOf("\$gt" to value))
+        infix fun KProperty1<T, *>.gte(value: Any?): BsonDocument = mapOf(this.name to mapOf("\$gte" to value))
+        infix fun KProperty1<T, *>.lt(value: Any?):  BsonDocument = mapOf(this.name to mapOf("\$lt" to value))
+        infix fun KProperty1<T, *>.lte(value: Any?): BsonDocument = mapOf(this.name to mapOf("\$lte" to value))
+        infix fun KProperty1<T, *>._in(value: List<Any?>):  BsonDocument = mapOf(this.name to mapOf("\$in" to value))
+        infix fun KProperty1<T, *>._nin(value: List<Any?>): BsonDocument = mapOf(this.name to mapOf("\$nin" to value))
+
+        fun and(vararg items: BsonDocument): BsonDocument = mapOf("\$and" to items.toList())
+        fun or(vararg items:  BsonDocument): BsonDocument = mapOf("\$or" to items.toList())
+        fun nor(vararg items: BsonDocument): BsonDocument = mapOf("\$nor" to items.toList())
+
+        infix fun BsonDocument.and(other: BsonDocument): BsonDocument = and(this, other)
+        infix fun BsonDocument.or(other: BsonDocument):  BsonDocument = or(this, other)
+        infix fun BsonDocument.nor(other: BsonDocument): BsonDocument = nor(this, other)
+        fun BsonDocument.not(): BsonDocument = mapOf("\$not" to this)
+
+        fun KProperty1<T, *>.exists(exists: Boolean = true) = mapOf(this.name to mapOf("\$exists" to exists))
+        fun KProperty1<T, *>.eqType(type: String) = mapOf(this.name to mapOf("\$type" to type))
+
+        // @TODO: Add to untyped too
+        infix fun KProperty1<T, *>.regex(value: Regex):  BsonDocument = mapOf(this.name to mapOf("\$regex" to value))
+
+        infix fun <T2> KProperty1<T, List<T2>?>.contains(value: T2):  BsonDocument = mapOf(this.name to mapOf("\$all" to listOf(value)))
+        infix fun <T2> KProperty1<T, List<T2>?>.all(value: List<T2>):  BsonDocument = mapOf(this.name to mapOf("\$all" to value))
+        infix fun KProperty1<T, List<*>?>.elemMatch(cond: BsonDocument):  BsonDocument = mapOf(this.name to mapOf("\$elemMatch" to cond))
+        infix fun KProperty1<T, List<*>?>.size(count: Int):  BsonDocument = mapOf(this.name to mapOf("\$size" to count))
     }
 
     private val expr = Expr()
     @Suppress("UNCHECKED_CAST")
+    // How nice would be to have LINQ from C#?
+    // https://msdn.microsoft.com/en-us/library/system.linq.expressions(v=vs.110).aspx
     suspend fun find(query: Expr.() -> BsonDocument): List<T> {
         val cond = query(expr)
         //println(cond)

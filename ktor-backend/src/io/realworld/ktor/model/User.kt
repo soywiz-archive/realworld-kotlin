@@ -13,8 +13,28 @@ class User(data: BsonDocument = mapOf()) : MongoEntity<User>(data) {
     var bio: String? by Extra { null }
     var image: String by Extra { "dummy.png" }
 
+    //var password: String
+    //    set(value) = run { passwordHash = hashPassword(value) }
+    //    get() = "****" // Can't retrieve password
+
     companion object {
+        val HASH_ALGO = "SHA256"
+        val HASH_PREFIX = "myprefix123"
+        val HASH_POSTFIX = "myverylongpostfix"
+
         fun hashPassword(password: String): String =
-            MessageDigest.getInstance("MD5").digest(password.toByteArray(Charsets.UTF_8)).hex
+            MessageDigest.getInstance(HASH_ALGO).digest("$HASH_PREFIX$password$HASH_POSTFIX".toByteArray(Charsets.UTF_8)).hex
     }
 }
+
+
+/*
+//@Serializable
+data class User(
+    val email: String,
+    val token: String,
+    val username: String,
+    val bio: String,
+    val image: String
+)
+*/

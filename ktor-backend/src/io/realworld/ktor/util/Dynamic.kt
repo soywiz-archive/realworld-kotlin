@@ -1,7 +1,6 @@
 package io.realworld.ktor.util
 
-
-object DynamicAccess {
+object Dynamic {
     val Any?.list: List<Any?>
         get() = when (this) {
             is List<*> -> this
@@ -79,5 +78,4 @@ object DynamicAccess {
     val Any?.longArray: LongArray get() = this as? LongArray ?: list.map { it.long }.toLongArray()
 }
 
-inline fun <T> Dynamic(callback: DynamicAccess.() -> T): T = callback(DynamicAccess)
-inline fun <T> DynamicAccess(callback: DynamicAccess.() -> T): T = callback(DynamicAccess)
+inline fun <T> Dynamic(callback: Dynamic.() -> T): T = callback(Dynamic)

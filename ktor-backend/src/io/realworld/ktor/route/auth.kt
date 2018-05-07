@@ -10,7 +10,9 @@ import io.realworld.ktor.*
 import io.realworld.ktor.model.*
 import io.realworld.ktor.util.*
 
-fun Route.routeAuth(users: MongoDBTypedCollection<User>) {
+fun Route.routeAuth(db: Db) {
+    val users = db.users
+
     // Register
     post("/users") {
         val post = call.receive<PostUser>()
@@ -63,14 +65,12 @@ fun Route.routeAuth(users: MongoDBTypedCollection<User>) {
     }
 }
 
-private fun ApplicationCall.getLoggedUserName() = authentication.principal<UserIdPrincipal>()!!.name
-
 private fun User.userMapWithToken() = mapOf(
     "user" to this.extract(
-        User::email,
-        User::username,
-        User::bio,
-        User::image
+        io.realworld.ktor.model.User::email,
+        io.realworld.ktor.model.User::username,
+        io.realworld.ktor.model.User::bio,
+        io.realworld.ktor.model.User::image
     ) + mapOf("token" to MyJWT.sign(username!!))
 )
 
