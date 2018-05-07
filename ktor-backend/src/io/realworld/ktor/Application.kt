@@ -2,16 +2,13 @@ package io.realworld.ktor
 
 import com.auth0.jwt.*
 import com.auth0.jwt.algorithms.*
-import com.soywiz.io.ktor.client.mongodb.*
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.*
 import io.ktor.features.*
-import io.ktor.http.*
 import io.ktor.jackson.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.realworld.ktor.model.*
 import io.realworld.ktor.route.*
 import io.realworld.ktor.util.*
 import kotlinx.coroutines.experimental.*
@@ -27,25 +24,11 @@ fun main(args: Array<String>): Unit {
     io.ktor.server.netty.DevelopmentEngine.main(args)
 }
 
-object MyJWT {
-    private val secret = "mysupersecret"
-    private val audience = "conduit-server"
-    private val issuer = "http://127.0.0.1/"
+open class MyJWT(val secret: String) {
     private val algorithm = Algorithm.HMAC256(secret)
-
-    val verifier = JWT
-        .require(algorithm)
-        .withAudience(audience)
-        .withIssuer(issuer)
-        .build()
-
-    fun sign(name: String): String = JWT.create()
-        .withClaim("name", name)
-        .withAudience(audience)
-        .withIssuer(issuer)
-        .sign(algorithm)
+    val verifier = JWT.require(algorithm).build()
+    fun sign(name: String): String = JWT.create().withClaim("name", name).sign(algorithm)
 }
-
 
 /**
  * https://www.getpostman.com/
@@ -58,15 +41,18 @@ object MyJWT {
 fun Application.main() {
     runBlocking {
         val db = Db()
+        val myjwt = MyJWT(
+            secret = environment.config.property("jwt.secret").getString()
+        )
 
         install(ContentNegotiation) {
             jackson {
             }
         }
         install(Authentication) {
-            this.jwt {
-                this.verifier(MyJWT.verifier)
-                this.validate {
+            jwt {
+                verifier(myjwt.verifier)
+                validate {
                     UserIdPrincipal(it.payload.getClaim("name").asString())
                 }
             }
@@ -78,7 +64,7 @@ fun Application.main() {
         }
 
         routing {
-            routeAuth(db)
+            routeAuth(db, myjwt)
             routeArticles(db)
             routeTags(db)
             get("/") {

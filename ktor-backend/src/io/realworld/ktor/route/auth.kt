@@ -10,7 +10,7 @@ import io.realworld.ktor.*
 import io.realworld.ktor.model.*
 import io.realworld.ktor.util.*
 
-fun Route.routeAuth(db: Db) {
+fun Route.routeAuth(db: Db, myjwt: MyJWT) {
     val users = db.users
 
     // Register
@@ -24,7 +24,7 @@ fun Route.routeAuth(db: Db) {
                 bio = ""
             }
             users.insert(user)
-            call.respond(HttpStatusCode.Created, user.userMapWithToken())
+            call.respond(HttpStatusCode.Created, user.userMapWithToken(myjwt))
         } catch (e: Throwable) {
             e.printStackTrace()
             call.respond(
@@ -41,14 +41,14 @@ fun Route.routeAuth(db: Db) {
             (User::email eq post.user.email) and
                     (User::passwordHash eq User.hashPassword(post.user.password))
         } ?: unauthorized()
-        call.respond(HttpStatusCode.OK, user.userMapWithToken())
+        call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
     }
 
     authenticate {
         // Current User
         get("/user") {
             val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
-            call.respond(HttpStatusCode.OK, user.userMapWithToken())
+            call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
         }
         // Update User
         put("/user") {
@@ -60,18 +60,18 @@ fun Route.routeAuth(db: Db) {
                 .filterValues { it != null }
             for ((prop, value) in updatedFields) user.extra[prop.name] = value
             users.update(user, *updatedFields.keys.toTypedArray())
-            call.respond(HttpStatusCode.OK, user.userMapWithToken())
+            call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
         }
     }
 }
 
-private fun User.userMapWithToken() = mapOf(
+private fun User.userMapWithToken(myjwt: MyJWT) = mapOf(
     "user" to this.extract(
         io.realworld.ktor.model.User::email,
         io.realworld.ktor.model.User::username,
         io.realworld.ktor.model.User::bio,
         io.realworld.ktor.model.User::image
-    ) + mapOf("token" to MyJWT.sign(username!!))
+    ) + mapOf("token" to myjwt.sign(username!!))
 )
 
 class PostUser(val user: PostUserUser)

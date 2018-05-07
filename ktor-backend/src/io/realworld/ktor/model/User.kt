@@ -18,7 +18,7 @@ class User(data: BsonDocument = mapOf()) : MongoEntity<User>(data) {
     //    get() = "****" // Can't retrieve password
 
     companion object {
-        val HASH_ALGO = "SHA256"
+        val HASH_ALGO = "SHA-256"
         val HASH_PREFIX = "myprefix123"
         val HASH_POSTFIX = "myverylongpostfix"
 
