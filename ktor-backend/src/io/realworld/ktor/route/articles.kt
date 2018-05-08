@@ -3,6 +3,7 @@ package io.realworld.ktor.route
 import com.soywiz.io.ktor.client.mongodb.bson.*
 import io.ktor.application.*
 import io.ktor.auth.*
+import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -20,14 +21,18 @@ fun Route.routeArticles(db: Db) {
             call.respond(mapOf("article" to article))
         }
         get {
-            val articles = db.articles.find {
-                when {
-                    call.parameters["favorited"] != null -> Article::author eq call.parameters["favorited"]
-                    call.parameters["author"] != null -> Article::author eq call.parameters["author"]
-                    call.parameters["tag"] != null -> Article::tagList contains call.parameters["tag"]
-                    else -> all()
+            val params = call.parameters
+            val articles = when {
+                params["favorited"] != null -> {
+                    val user = db.users.findOneOrNull { User::username eq params["favorited"] } ?: notFound()
+                    if (user.favorites != null) db.articles.find { Article::_id _in user.favorites } else listOf()
+
                 }
+                params["author"] != null -> db.articles.find { Article::author eq params["author"] }
+                params["tag"] != null -> db.articles.find { Article::tagList contains params["tag"] }
+                else -> db.articles.find()
             }
+
             call.respond(
                 mapOf(
                     "articles" to articles,
@@ -38,22 +43,54 @@ fun Route.routeArticles(db: Db) {
     }
 
     authenticate {
+        route("/articles/{slug}/favorite") {
+            handle {
+                val userName = call.getLoggedUserName()
+                val slug = call.parameters["slug"]
+                val user = db.users.findOneOrNull { User::username eq userName } ?: notFound("user")
+                val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound("article")
+                when (call.request.httpMethod) {
+                    HttpMethod.Post -> db.users.updatePush(user, User::favorites, article._id, once = true)
+                    HttpMethod.Delete -> db.users.updatePull(user, User::favorites, article._id)
+                    else -> notFound()
+                }
+                call.respond(
+                    mapOf(
+                        "article" to article.extractAllBut(Article::_id) + mapOf(
+                            "favorited" to db.userFavorited(user.username, article.slug)
+                        )
+                    )
+                )
+            }
+        }
         post("/articles") {
             val receive = call.receive<BsonDocument>()
             val now = Date()
+            val user = db.users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: notFound("user")
             val article = Article(receive["article"] as BsonDocument).apply {
                 ensureNotNull(Article::title, Article::description, Article::body, Article::tagList)
                 slug = Article.slugify(title ?: "")
                 createdAt = Article.ISO8601.format(now)
                 updatedAt = Article.ISO8601.format(now)
-                author = call.getLoggedUserName()
-                favorited = false
+                author = user.username
                 favoritesCount = 0
             }
-            db.articles.insert(article)
-            call.respond(mapOf("article" to article))
+            db.articles.insert(article, writeConcern = mapOf("w" to 1))
+            call.respond(
+                mapOf(
+                    "article" to article.extractAllBut(Article::_id) + mapOf(
+                        "favorited" to db.userFavorited(user.username, article.slug)
+                    )
+                )
+            )
         }
     }
+}
+
+suspend fun Db.userFavorited(userName: String?, articleSlug: String?): Boolean {
+    val user = users.findOneOrNull { User::username eq userName } ?: notFound("user")
+    val article = articles.findOneOrNull { Article::slug eq articleSlug } ?: notFound("article")
+    return user.favorites?.toList()?.contains(article._id) == true
 }
 
 /*
@@ -67,3 +104,4 @@ private suspend fun ApplicationCall.respondArticles(db: Db, filter: MongoDBTyped
     )
 }
 */
+

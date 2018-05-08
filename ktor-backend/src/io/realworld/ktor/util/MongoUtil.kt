@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.*
 import com.fasterxml.jackson.databind.ser.std.*
 import com.soywiz.io.ktor.client.mongodb.*
 import com.soywiz.io.ktor.client.mongodb.bson.*
+import com.soywiz.io.ktor.client.util.*
 import kotlin.reflect.*
 
 @JsonSerialize(using = MongoEntitySerializer::class)
@@ -18,6 +19,9 @@ open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.
         for (prop in props) out[prop.name] = this.extra[prop.name]
         return out
     }
+
+    fun extractAll(): BsonDocument = extra.toMap()
+    fun extractAllBut(vararg props: KProperty1<T, *>): BsonDocument = extra.toMap() - props.map { it.name }
 
     fun ensureNotNull(vararg props: KProperty1<T, *>): T = (this as T).apply {
         for (prop in props) {
@@ -65,8 +69,18 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         return this
     }
 
-    suspend fun insert(vararg item: T) {
-        val result = collection.insert(*item.map { it.extra }.toTypedArray())
+    suspend fun insert(
+        vararg item: T,
+        ordered: Boolean? = null,
+        writeConcern: BsonDocument? = null,
+        bypassDocumentValidation: Boolean? = null
+    ) {
+        val result = collection.insert(
+            *item.map { it.extra }.toTypedArray(),
+            ordered = ordered,
+            writeConcern = writeConcern,
+            bypassDocumentValidation = bypassDocumentValidation
+        )
         println(result)
     }
 
@@ -82,8 +96,8 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         infix fun KProperty1<T, *>.gte(value: Any?): BsonDocument = mapOf(this.name to mapOf("\$gte" to value))
         infix fun KProperty1<T, *>.lt(value: Any?): BsonDocument = mapOf(this.name to mapOf("\$lt" to value))
         infix fun KProperty1<T, *>.lte(value: Any?): BsonDocument = mapOf(this.name to mapOf("\$lte" to value))
-        infix fun KProperty1<T, *>._in(value: List<Any?>): BsonDocument = mapOf(this.name to mapOf("\$in" to value))
-        infix fun KProperty1<T, *>._nin(value: List<Any?>): BsonDocument = mapOf(this.name to mapOf("\$nin" to value))
+        infix fun KProperty1<T, *>._in(value: List<Any?>?): BsonDocument = mapOf(this.name to mapOf("\$in" to value))
+        infix fun KProperty1<T, *>._nin(value: List<Any?>?): BsonDocument = mapOf(this.name to mapOf("\$nin" to value))
 
         fun and(vararg items: BsonDocument): BsonDocument = mapOf("\$and" to items.toList())
         fun or(vararg items: BsonDocument): BsonDocument = mapOf("\$or" to items.toList())
@@ -116,7 +130,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
     @Suppress("UNCHECKED_CAST")
     // How nice would be to have LINQ from C#?
     // https://msdn.microsoft.com/en-us/library/system.linq.expressions(v=vs.110).aspx
-    suspend fun find(query: Expr.() -> BsonDocument): List<T> {
+    suspend fun find(query: Expr.() -> BsonDocument = { all() }): List<T> {
         val cond = query(expr)
         //println(cond)
         val result = collection.find { cond }
@@ -131,6 +145,30 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
             MongoUpdate(
                 mapOf(
                     "\$set" to props.associate { it.name to item.extra[it.name] }
+                )
+            ) {
+                "_id" eq item._id
+            }
+        )
+    }
+
+    suspend fun <R> updatePush(item: T, prop: KProperty1<T, List<R?>?>, valueToPush: R, once: Boolean = false) {
+        collection.update(
+            MongoUpdate(
+                mapOf(
+                    (if (once) "\$addToSet" else "\$push") to mapOf(prop.name to valueToPush)
+                )
+            ) {
+                "_id" eq item._id
+            }
+        )
+    }
+
+    suspend fun <R> updatePull(item: T, prop: KProperty1<T, List<R?>?>, valueToPush: R) {
+        collection.update(
+            MongoUpdate(
+                mapOf(
+                    "\$pull" to mapOf(prop.name to valueToPush)
                 )
             ) {
                 "_id" eq item._id

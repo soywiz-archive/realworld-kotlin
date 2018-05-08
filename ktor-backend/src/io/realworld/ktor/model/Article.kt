@@ -13,7 +13,6 @@ class Article(data: BsonDocument = mapOf()) : MongoEntity<Article>(data) {
     var description: String? by Extra { null }
     var body: String? by Extra { null }
     var tagList: List<String?>? by Extra { null }
-    var favorited: Boolean? by Extra { null }
     var favoritesCount: Long? by Extra { null }
 
     companion object {

@@ -59,7 +59,7 @@ fun Application.main() {
         }
         install(StatusPages) {
             exception<HttpStatusException> { cause ->
-                call.respond(cause.status)
+                call.respond(cause.status, cause.message ?: "error")
             }
         }
 
