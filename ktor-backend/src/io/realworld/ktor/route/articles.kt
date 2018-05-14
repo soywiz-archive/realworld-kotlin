@@ -25,21 +25,26 @@ fun Route.routeArticles(db: Db) {
 
         get {
             val params = call.parameters
+            val articleQuery = db.articles.query()
+
             val articles = when {
                 params["favorited"] != null -> {
                     val user = db.users.findOneOrNull { User::username eq params["favorited"] } ?: notFound()
-                    if (user.favorites != null) db.articles.find { Article::_id _in user.favorites } else listOf()
+                    if (user.favorites != null) articleQuery.filter { Article::_id _in user.favorites } else articleQuery.filter { Article::_id eq "invalid" }
 
                 }
-                params["author"] != null -> db.articles.find { Article::author eq params["author"] }
-                params["tag"] != null -> db.articles.find { Article::tagList contains params["tag"] }
-                else -> db.articles.find()
+                params["author"] != null -> articleQuery.filter { Article::author eq params["author"] }
+                params["tag"] != null -> articleQuery.filter { Article::tagList contains params["tag"] }
+                else -> articleQuery
             }
+
+            val limit = params["limit"]?.toIntOrNull() ?: 20
+            val offset = params["offset"]?.toIntOrNull() ?: 0
 
             call.respond(
                 mapOf(
-                    "articles" to articles,
-                    "articlesCount" to articles.size
+                    "articles" to articles.skip(offset).limit(limit).toList(),
+                    "articlesCount" to articles.count()
                 )
             )
         }

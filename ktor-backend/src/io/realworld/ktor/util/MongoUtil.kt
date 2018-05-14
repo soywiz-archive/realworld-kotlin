@@ -7,12 +7,7 @@ import com.fasterxml.jackson.databind.ser.std.*
 import com.soywiz.io.ktor.client.mongodb.*
 import com.soywiz.io.ktor.client.mongodb.bson.*
 import com.soywiz.io.ktor.client.util.*
-import com.soywiz.io.ktor.client.util.sync.*
-import java.io.*
-import java.net.*
-import java.security.*
 import kotlin.reflect.*
-
 
 @JsonSerialize(using = MongoEntitySerializer::class)
 open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.Mixin(
@@ -63,6 +58,27 @@ suspend fun MongoDBCollection.ensureIndex(
     return this
 }
 
+data class MongoDBTypedQuery<T : MongoEntity<T>>(val collection: MongoDBTypedCollection<T>, val query: MongoDBQuery) :
+    SuspendingSequence<T> {
+    fun skip(count: Int) = copy(query = query.skip(count))
+    fun limit(count: Int) = copy(query = query.limit(count))
+    fun filter(q: MongoDBTypedCollection<T>.Expr.() -> BsonDocument) =
+        copy(query = query.filter { q(collection.expr) })
+
+    fun include(vararg props: KProperty1<T, *>) =
+        copy(query = query.include(*props.map { it.name }.toTypedArray()))
+
+    fun exclude(vararg props: KProperty1<T, *>) =
+        copy(query = query.exclude(*props.map { it.name }.toTypedArray()))
+
+    fun sortedBy(vararg pairs: Pair<KProperty1<T, *>, Int>) = copy(query = query.sortedBy(*pairs.map { it.first.name to it.second }.toTypedArray()))
+
+    override suspend fun iterator(): SuspendingIterator<T> = query.map { collection.gen(it) }.iterator()
+
+    suspend fun count() = query.count()
+    suspend fun firstOrNull(): T? = limit(1).toList().firstOrNull()
+}
+
 class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, val collection: MongoDBCollection) {
     suspend fun ensureIndex(
         vararg keys: Pair<KProperty1<T, *>, Int>,
@@ -81,7 +97,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         bypassDocumentValidation: Boolean? = null
     ): List<T> {
         for (i in item) {
-            if (i._id == null) i._id = MongoObjectIdGenerator.generate()
+            if (i._id == null) i._id = MongoDBObjectIdGenerator.generate()
         }
         val result = collection.insert(
             *item.map { it.extra }.toTypedArray(),
@@ -135,17 +151,15 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         infix fun KProperty1<T, List<*>?>.size(count: Int): BsonDocument = mapOf(this.name to mapOf("\$size" to count))
     }
 
-    private val expr = Expr()
+    internal val expr = Expr()
     @Suppress("UNCHECKED_CAST")
     // How nice would be to have LINQ from C#?
     // https://msdn.microsoft.com/en-us/library/system.linq.expressions(v=vs.110).aspx
-    suspend fun find(query: Expr.() -> BsonDocument = { all() }): List<T> {
-        val cond = query(expr)
-        //println(cond)
-        val result = collection.find { cond }
-        //println(result)
-        return result.map { gen(it) }
+    suspend fun find(query: Expr.() -> BsonDocument = { all() }): SuspendingSequence<T> {
+        return collection.find { query(expr) }.map { gen(it) }
     }
+
+    suspend fun query(): MongoDBTypedQuery<T> = MongoDBTypedQuery(this, collection.query())
 
     suspend fun delete(query: Expr.() -> BsonDocument = { all() }) {
         val result = collection.delete(false) { query(expr) }
@@ -235,53 +249,3 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
 fun <T : MongoEntity<T>> MongoDBCollection.typed(gen: (BsonDocument) -> T): MongoDBTypedCollection<T> {
     return MongoDBTypedCollection(gen, this)
 }
-
-// https://docs.mongodb.com/manual/reference/method/ObjectId/#ObjectId
-// a 4-byte value representing the seconds since the Unix epoch,
-// a 3-byte machine identifier,
-// a 2-byte process id, and
-// a 3-byte counter, starting with a random value.
-
-// A globally unique identifier for objects.
-// Consists of 12 bytes, divided as follows:
-// ObjectID layout
-// 0123 456     78   91011
-// time machine pid  inc
-// Note that the numbers are stored in big-endian order.
-object MongoObjectIdGenerator {
-    private val machineId by lazy { createMachineIdentifier() }
-    private val processId by lazy { createProcessIdentifier() }
-    private var counter = SecureRandom().nextInt() and 0xFFFFFF
-
-    fun generate(): BsonObjectId = synchronized(this) {
-        return BsonObjectId(ByteArrayOutputStream().apply {
-            write32_be((System.currentTimeMillis() / 1000L).toInt())
-            write24_be(machineId)
-            write16_be(processId)
-            write24_be(counter++)
-        }.toByteArray())
-    }
-
-    private fun createProcessIdentifier(): Int {
-        return try {
-            val mxName = java.lang.management.ManagementFactory.getRuntimeMXBean().name
-            return mxName.split("@").firstOrNull()?.toIntOrNull() ?: mxName.hashCode()
-        } catch (t: Throwable) {
-            SecureRandom().nextInt()
-        }
-    }
-
-    private fun createMachineIdentifier(): Int = try {
-        var sb = 0
-        for (ni in NetworkInterface.getNetworkInterfaces()) {
-            sb += ni.hashCode()
-            val mac = ni.hardwareAddress
-            if (mac != null) for (m in mac) sb += m.toInt()
-        }
-        sb
-    } catch (t: Throwable) {
-        SecureRandom().nextInt()
-    } and 0xFFFFFF
-}
-
-val BsonObjectId.hex: String get() = Hex.encode(this.data)
