@@ -55,6 +55,11 @@ dependencies {
     compile "ch.qos.logback:logback-classic:$logback_version"
 
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
+
+    testCompile "org.arquillian.universe:arquillian-junit-standalone:1.2.0.1"
+    testCompile "org.arquillian.universe:arquillian-cube-core:1.2.0.1"
+    testCompile "org.arquillian.universe:arquillian-cube-docker:1.2.0.1"
+
 }
 
 kotlin.experimental.coroutines = 'enable'

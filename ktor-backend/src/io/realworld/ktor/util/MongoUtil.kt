@@ -178,11 +178,11 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         )
     }
 
-    suspend fun <R> updatePull(item: T, prop: KProperty1<T, List<R?>?>, valueToPush: R) {
+    suspend fun <R> updatePull(item: T, prop: KProperty1<T, List<R?>?>, valueToPull: R) {
         collection.update(
             MongoUpdate(
                 mapOf(
-                    "\$pull" to mapOf(prop.name to valueToPush)
+                    "\$pull" to mapOf(prop.name to valueToPull)
                 )
             ) {
                 "_id" eq item._id

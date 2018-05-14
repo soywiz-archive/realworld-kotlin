@@ -44,13 +44,19 @@ fun Application.main() {
         val jwt = MyJWT(
             secret = environment.config.property("jwt.secret").getString()
         )
+        mainModule(db, jwt)
+    }
+}
 
+fun Application.mainModule(db: Db, jwt: MyJWT) {
+    runBlocking {
         install(ContentNegotiation) {
             jackson {
             }
         }
         install(Authentication) {
             jwt {
+                //schemes("Token", "Bearer")
                 verifier(jwt.verifier)
                 validate {
                     UserIdPrincipal(it.payload.getClaim("name").asString())
@@ -65,6 +71,7 @@ fun Application.main() {
 
         routing {
             routeAuth(db, jwt)
+            routeProfiles(db)
             routeArticleComments(db)
             routeArticles(db)
             routeTags(db)

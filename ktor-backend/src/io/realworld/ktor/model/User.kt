@@ -13,6 +13,7 @@ class User(data: BsonDocument = mapOf()) : MongoEntity<User>(data) {
     var bio: String? by Extra { null }
     var image: String by Extra { "dummy.png" }
     var favorites: List<BsonObjectId>? by Extra { null }
+    var following: List<String>? by Extra { null }
 
     //var password: String
     //    set(value) = run { passwordHash = hashPassword(value) }
