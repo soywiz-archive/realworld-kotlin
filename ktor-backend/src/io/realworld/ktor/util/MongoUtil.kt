@@ -147,6 +147,11 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         return result.map { gen(it) }
     }
 
+    suspend fun delete(query: Expr.() -> BsonDocument = { all() }) {
+        val result = collection.delete(false) { query(expr) }
+        println(result)
+    }
+
     suspend fun findOneOrNull(query: Expr.() -> BsonDocument): T? = find(query).firstOrNull()
     suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: error("Can't find item")
     suspend fun update(item: T, vararg props: KMutableProperty1<T, *>) {
@@ -244,11 +249,11 @@ fun <T : MongoEntity<T>> MongoDBCollection.typed(gen: (BsonDocument) -> T): Mong
 // time machine pid  inc
 // Note that the numbers are stored in big-endian order.
 object MongoObjectIdGenerator {
-    val machineId by lazy { createMachineIdentifier() }
-    val processId by lazy { createProcessIdentifier() }
-    var counter = SecureRandom().nextInt() and 0xFFFFFF
+    private val machineId by lazy { createMachineIdentifier() }
+    private val processId by lazy { createProcessIdentifier() }
+    private var counter = SecureRandom().nextInt() and 0xFFFFFF
 
-    fun generate(): BsonObjectId {
+    fun generate(): BsonObjectId = synchronized(this) {
         return BsonObjectId(ByteArrayOutputStream().apply {
             write32_be((System.currentTimeMillis() / 1000L).toInt())
             write24_be(machineId)

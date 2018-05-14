@@ -40,7 +40,13 @@ fun Route.routeArticles(db: Db) {
                         call.respond(mapOf("comment" to comment.extractAllBut(Comment::_id) + mapOf("id" to comment._id?.hex)))
                     }
                     delete("/{commentId}") {
-                        call.respond(HttpStatusCode.Conflict)
+                        val slug = call.parameters["slug"]
+                        val commentId = call.parameters["commentId"].toString()
+                        val comment = db.comments.findOneOrNull { Comment::_id eq BsonObjectId(Hex.decode(commentId)) } ?: notFound()
+                        if (comment.article != slug) notFound()
+                        if (comment.author != call.getLoggedUserName()) unauthorized()
+                        db.comments.delete { Comment::_id eq comment._id }
+                        call.respond(mapOf("ok" to "ok"))
                     }
                 }
             }
