@@ -7,7 +7,12 @@ import com.fasterxml.jackson.databind.ser.std.*
 import com.soywiz.io.ktor.client.mongodb.*
 import com.soywiz.io.ktor.client.mongodb.bson.*
 import com.soywiz.io.ktor.client.util.*
+import com.soywiz.io.ktor.client.util.sync.*
+import java.io.*
+import java.net.*
+import java.security.*
 import kotlin.reflect.*
+
 
 @JsonSerialize(using = MongoEntitySerializer::class)
 open class MongoEntity<T : MongoEntity<T>>(data: BsonDocument) : Extra by Extra.Mixin(
@@ -74,7 +79,10 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         ordered: Boolean? = null,
         writeConcern: BsonDocument? = null,
         bypassDocumentValidation: Boolean? = null
-    ) {
+    ): List<T> {
+        for (i in item) {
+            if (i._id == null) i._id = MongoObjectIdGenerator.generate()
+        }
         val result = collection.insert(
             *item.map { it.extra }.toTypedArray(),
             ordered = ordered,
@@ -82,6 +90,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
             bypassDocumentValidation = bypassDocumentValidation
         )
         println(result)
+        return item.toList()
     }
 
     /**
@@ -222,3 +231,52 @@ fun <T : MongoEntity<T>> MongoDBCollection.typed(gen: (BsonDocument) -> T): Mong
     return MongoDBTypedCollection(gen, this)
 }
 
+// https://docs.mongodb.com/manual/reference/method/ObjectId/#ObjectId
+// a 4-byte value representing the seconds since the Unix epoch,
+// a 3-byte machine identifier,
+// a 2-byte process id, and
+// a 3-byte counter, starting with a random value.
+
+// A globally unique identifier for objects.
+// Consists of 12 bytes, divided as follows:
+// ObjectID layout
+// 0123 456     78   91011
+// time machine pid  inc
+// Note that the numbers are stored in big-endian order.
+object MongoObjectIdGenerator {
+    val machineId by lazy { createMachineIdentifier() }
+    val processId by lazy { createProcessIdentifier() }
+    var counter = SecureRandom().nextInt() and 0xFFFFFF
+
+    fun generate(): BsonObjectId {
+        return BsonObjectId(ByteArrayOutputStream().apply {
+            write32_be((System.currentTimeMillis() / 1000L).toInt())
+            write24_be(machineId)
+            write16_be(processId)
+            write24_be(counter++)
+        }.toByteArray())
+    }
+
+    private fun createProcessIdentifier(): Int {
+        return try {
+            val mxName = java.lang.management.ManagementFactory.getRuntimeMXBean().name
+            return mxName.split("@").firstOrNull()?.toIntOrNull() ?: mxName.hashCode()
+        } catch (t: Throwable) {
+            SecureRandom().nextInt()
+        }
+    }
+
+    private fun createMachineIdentifier(): Int = try {
+        var sb = 0
+        for (ni in NetworkInterface.getNetworkInterfaces()) {
+            sb += ni.hashCode()
+            val mac = ni.hardwareAddress
+            if (mac != null) for (m in mac) sb += m.toInt()
+        }
+        sb
+    } catch (t: Throwable) {
+        SecureRandom().nextInt()
+    } and 0xFFFFFF
+}
+
+val BsonObjectId.hex: String get() = Hex.encode(this.data)

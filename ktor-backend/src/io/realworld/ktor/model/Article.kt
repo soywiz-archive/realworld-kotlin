@@ -16,9 +16,6 @@ class Article(data: BsonDocument = mapOf()) : MongoEntity<Article>(data) {
     var favoritesCount: Long? by Extra { null }
 
     companion object {
-        // "2018-05-07T06:36:02.416Z"
-        val ISO8601 = SimpleDateFormat("YYYY-MM-dd'T'HH:mm:ss.SSS'Z'")
-
         fun slugify(title: String): String = title.replace(Regex("\\W+"), "-").toLowerCase()
     }
 }

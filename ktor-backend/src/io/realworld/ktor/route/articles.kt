@@ -1,6 +1,7 @@
 package io.realworld.ktor.route
 
 import com.soywiz.io.ktor.client.mongodb.bson.*
+import com.soywiz.io.ktor.client.util.*
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.http.*
@@ -13,13 +14,44 @@ import io.realworld.ktor.util.*
 import java.util.*
 
 fun Route.routeArticles(db: Db) {
-
     route("/articles") {
-        get("/{slug}") {
-            val slug = call.parameters["slug"]
-            val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound()
-            call.respond(mapOf("article" to article))
+        route("/{slug}") {
+            route("/comments") {
+                get {
+                    // @TODO: Sort by date
+                    val slug = call.parameters["slug"]
+                    val comments = db.comments.find { Comment::article eq slug }
+                    call.respond(mapOf("comments" to comments.map { it.extractAllBut(Comment::_id) + mapOf("id" to it._id?.hex) }))
+                }
+                authenticate {
+                    post {
+                        val slug = call.parameters["slug"]
+                        val post = call.receive<BsonDocument>()
+                        val now = Date()
+                        val comment = Comment().apply {
+                            author = call.getLoggedUserName()
+                            body = Dynamic { post["comment"]["body"].str }
+                            createdAt = ISO8601.format(now)
+                            updatedAt = ISO8601.format(now)
+                            article = slug
+                        }
+
+                        db.comments.insert(comment, writeConcern = mapOf("w" to 1))
+                        call.respond(mapOf("comment" to comment.extractAllBut(Comment::_id) + mapOf("id" to comment._id?.hex)))
+                    }
+                    delete("/{commentId}") {
+                        call.respond(HttpStatusCode.Conflict)
+                    }
+                }
+            }
+
+            get {
+                val slug = call.parameters["slug"]
+                val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound()
+                call.respond(mapOf("article" to article))
+            }
         }
+
         get {
             val params = call.parameters
             val articles = when {
@@ -64,14 +96,14 @@ fun Route.routeArticles(db: Db) {
             }
         }
         post("/articles") {
-            val receive = call.receive<BsonDocument>()
+            val post = call.receive<BsonDocument>()
             val now = Date()
             val user = db.users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: notFound("user")
-            val article = Article(receive["article"] as BsonDocument).apply {
+            val article = Article(post["article"] as BsonDocument).apply {
                 ensureNotNull(Article::title, Article::description, Article::body, Article::tagList)
                 slug = Article.slugify(title ?: "")
-                createdAt = Article.ISO8601.format(now)
-                updatedAt = Article.ISO8601.format(now)
+                createdAt = ISO8601.format(now)
+                updatedAt = ISO8601.format(now)
                 author = user.username
                 favoritesCount = 0
             }

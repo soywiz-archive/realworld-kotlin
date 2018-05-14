@@ -9,6 +9,7 @@ class Db private constructor(dummy: Boolean) {
     val db = mongo["realworld-sample1"]
     lateinit var users: MongoDBTypedCollection<User>; private set
     lateinit var articles: MongoDBTypedCollection<Article>; private set
+    lateinit var comments: MongoDBTypedCollection<Comment>; private set
 
     companion object {
         suspend operator fun invoke(): Db = Db(true).apply {
@@ -16,6 +17,7 @@ class Db private constructor(dummy: Boolean) {
                 .ensureIndex(User::email to +1, unique = true)
                 .ensureIndex(User::username to +1, unique = true)
             articles = db["articles"].typed { Article(it) }
+            comments = db["comments"].typed { Comment(it) }
         }
     }
 }
