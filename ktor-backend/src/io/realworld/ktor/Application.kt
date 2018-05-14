@@ -41,7 +41,7 @@ open class MyJWT(val secret: String) {
 fun Application.main() {
     runBlocking {
         val db = Db()
-        val myjwt = MyJWT(
+        val jwt = MyJWT(
             secret = environment.config.property("jwt.secret").getString()
         )
 
@@ -51,7 +51,7 @@ fun Application.main() {
         }
         install(Authentication) {
             jwt {
-                verifier(myjwt.verifier)
+                verifier(jwt.verifier)
                 validate {
                     UserIdPrincipal(it.payload.getClaim("name").asString())
                 }
@@ -64,7 +64,8 @@ fun Application.main() {
         }
 
         routing {
-            routeAuth(db, myjwt)
+            routeAuth(db, jwt)
+            routeArticleComments(db)
             routeArticles(db)
             routeTags(db)
             get("/") {
