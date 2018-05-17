@@ -34,7 +34,7 @@ fun Route.routeProfiles(db: Db) {
                         User::bio,
                         User::image
                     ) + mapOf(
-                        "following" to db.userFollowing(call.getLoggedUserName(), name)
+                        "following" to db.userFollowing(call.getLoggedUserNameOrNull(), name)
                     )
                 )
             )
@@ -43,5 +43,6 @@ fun Route.routeProfiles(db: Db) {
 }
 
 suspend fun Db.userFollowing(username: String?, userToFollow: String?): Boolean {
+    if (username == null || userToFollow == null) return false
     return users.findOneOrNull { (User::username eq username) and (User::following contains userToFollow) } != null
 }

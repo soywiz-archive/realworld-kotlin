@@ -23,6 +23,7 @@ fun Route.routeAuth(db: Db, myjwt: MyJWT) {
                 email = post.user.email
                 passwordHash = User.hashPassword(post.user.password)
                 bio = ""
+                image = "https://static.productionready.io/images/smiley-cyrus.jpg"
             }
             users.insert(user)
             call.respond(HttpStatusCode.Created, user.userMapWithToken(myjwt))

@@ -6,7 +6,9 @@ import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.*
 import io.ktor.features.*
+import io.ktor.http.*
 import io.ktor.jackson.*
+import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.realworld.ktor.route.*
@@ -50,6 +52,31 @@ fun Application.main() {
 
 fun Application.mainModule(db: Db, jwt: MyJWT) {
     runBlocking {
+        //install(HeadRequestSupport)
+        install(CORS) {
+            method(HttpMethod.Options)
+            method(HttpMethod.Get)
+            method(HttpMethod.Post)
+            method(HttpMethod.Put)
+            method(HttpMethod.Delete)
+            method(HttpMethod.Patch)
+            header(HttpHeaders.Authorization)
+            allowCredentials = true
+            anyHost()
+        }
+        // @TODO: Implement this as a feature
+        intercept(ApplicationCallPipeline.Infrastructure) {
+            if (call.request.httpMethod == HttpMethod.Options) {
+                println("OPTIONS REQUEST")
+                call.response.header("Allow", "OPTIONS, GET, HEAD, POST, PUT, DELETE, PATCH")
+                call.respondText("")
+                finish()
+            } else {
+                println("OTHER REQUEST: ${call.request.httpMethod}")
+                proceed()
+            }
+        }
+
         install(ContentNegotiation) {
             jackson {
             }

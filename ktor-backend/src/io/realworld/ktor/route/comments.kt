@@ -20,7 +20,7 @@ fun Route.routeArticleComments(db: Db) {
                     // @TODO: Sort by date
                     val slug = call.parameters["slug"]
                     val comments = db.comments.find { Comment::article eq slug }
-                    call.respond(mapOf("comments" to comments.map { it.extractAllBut(Comment::_id) + mapOf("id" to it._id?.hex) }))
+                    call.respond(mapOf("comments" to comments.map { it.extractAllBut(Comment::_id) + mapOf("id" to it._id?.hex) }.toList()))
                 }
                 authenticate {
                     post {
