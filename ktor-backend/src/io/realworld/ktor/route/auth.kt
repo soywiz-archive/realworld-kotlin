@@ -10,6 +10,7 @@ import io.ktor.routing.*
 import io.realworld.ktor.*
 import io.realworld.ktor.model.*
 import io.realworld.ktor.util.*
+import java.security.*
 
 fun Route.routeAuth(db: Db, myjwt: MyJWT) {
     val users = db.users
@@ -23,7 +24,9 @@ fun Route.routeAuth(db: Db, myjwt: MyJWT) {
                 email = post.user.email
                 passwordHash = User.hashPassword(post.user.password)
                 bio = ""
-                image = "https://static.productionready.io/images/smiley-cyrus.jpg"
+                //image = "https://static.productionready.io/images/smiley-cyrus.jpg"
+                val emailMd5 = Hex.encodeLower(MessageDigest.getInstance("MD5").digest((email ?: "").toByteArray(Charsets.UTF_8)))
+                image = "https://s.gravatar.com/avatar/$emailMd5?s=80"
             }
             users.insert(user)
             call.respond(HttpStatusCode.Created, user.userMapWithToken(myjwt))

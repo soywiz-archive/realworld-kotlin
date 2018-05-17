@@ -16,6 +16,7 @@ class Db private constructor(mongo: MongoDB) {
                 .ensureIndex(User::email to +1, unique = true)
                 .ensureIndex(User::username to +1, unique = true)
             articles = db["articles"].typed { Article(it) }
+                .ensureIndex(Article::updatedAt to -1)
             comments = db["comments"].typed { Comment(it) }
         }
     }

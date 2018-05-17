@@ -105,7 +105,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
             writeConcern = writeConcern,
             bypassDocumentValidation = bypassDocumentValidation
         )
-        println(result)
+        //println(result)
         return item.toList()
     }
 
@@ -163,7 +163,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
 
     suspend fun delete(query: Expr.() -> BsonDocument = { all() }) {
         val result = collection.delete(false) { query(expr) }
-        println(result)
+        //println(result)
     }
 
     suspend fun findOneOrNull(query: Expr.() -> BsonDocument): T? = find(query).firstOrNull()
