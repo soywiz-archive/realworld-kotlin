@@ -19,8 +19,11 @@ fun Route.routeArticleComments(db: Db) {
                 get {
                     // @TODO: Sort by date
                     val slug = call.parameters["slug"]
-                    val comments = db.comments.find { Comment::article eq slug }
-                    call.respond(mapOf("comments" to comments.map { it.extractAllBut(Comment::_id) + mapOf("id" to it._id?.hex) }.toList()))
+                    val comments = db.comments
+                        .find { Comment::article eq slug }
+                        .sortedBy(Comment::updatedAt to -1)
+
+                    call.respond(mapOf("comments" to comments.map { it.resolve(db) }.toList()))
                 }
                 authenticate {
                     post {
@@ -36,7 +39,7 @@ fun Route.routeArticleComments(db: Db) {
                         }
 
                         db.comments.insert(comment, writeConcern = mapOf("w" to 1))
-                        call.respond(mapOf("comment" to comment.extractAllBut(Comment::_id) + mapOf("id" to comment._id?.hex)))
+                        call.respond(mapOf("comment" to comment.resolve(db)))
                     }
                     delete("/{commentId}") {
                         val slug = call.parameters["slug"]
@@ -46,10 +49,19 @@ fun Route.routeArticleComments(db: Db) {
                         if (comment.article != slug) notFound()
                         if (comment.author != call.getLoggedUserName()) unauthorized()
                         db.comments.delete { Comment::_id eq comment._id }
-                        call.respond(mapOf("ok" to "ok"))
+                        call.respond(mapOf<String, Any?>())
                     }
                 }
             }
         }
     }
+}
+
+suspend fun Comment.resolve(db: Db): BsonDocument {
+    val it = this
+
+    return extractAllBut(Comment::_id, Comment::author) + mapOf(
+        "id" to it._id?.hex,
+        "author" to resolveUser(this.author, db)
+    )
 }

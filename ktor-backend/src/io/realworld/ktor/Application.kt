@@ -67,12 +67,12 @@ fun Application.mainModule(db: Db, jwt: MyJWT) {
         // @TODO: Implement this as a feature
         intercept(ApplicationCallPipeline.Infrastructure) {
             if (call.request.httpMethod == HttpMethod.Options) {
-                println("OPTIONS REQUEST")
+                //println("OPTIONS REQUEST")
                 call.response.header("Allow", "OPTIONS, GET, HEAD, POST, PUT, DELETE, PATCH")
                 call.respondText("")
                 finish()
             } else {
-                println("OTHER REQUEST: ${call.request.httpMethod}")
+                //println("OTHER REQUEST: ${call.request.httpMethod}")
                 proceed()
             }
         }

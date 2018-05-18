@@ -1,8 +1,8 @@
 buildscript {
     ext.kotlin_version = '1.2.41'
     //ext.serialization_version = '0.5.0'
-    //ext.ktor_version = '0.9.2-SNAPSHOT'
-    ext.ktor_version = '0.9.2'
+    ext.ktor_version = '0.9.2-SNAPSHOT'
+    //ext.ktor_version = '0.9.2'
     ext.logback_version = '1.2.1'
     ext.soywiz_cio_version = '0.0.5'
 
@@ -54,7 +54,7 @@ dependencies {
 
     compile "ch.qos.logback:logback-classic:$logback_version"
 
-    testCompile "io.ktor:ktor-server-tests:$ktor_version"
+    //testCompile "io.ktor:ktor-server-test-host:$ktor_version"
 
     testCompile "org.arquillian.universe:arquillian-junit-standalone:1.2.0.1"
     testCompile "org.arquillian.universe:arquillian-cube-core:1.2.0.1"

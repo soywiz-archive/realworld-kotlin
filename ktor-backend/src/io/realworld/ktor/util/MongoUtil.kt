@@ -155,8 +155,9 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
     @Suppress("UNCHECKED_CAST")
     // How nice would be to have LINQ from C#?
     // https://msdn.microsoft.com/en-us/library/system.linq.expressions(v=vs.110).aspx
-    suspend fun find(query: Expr.() -> BsonDocument = { all() }): SuspendingSequence<T> {
-        return collection.find { query(expr) }.map { gen(it) }
+    suspend fun find(query: Expr.() -> BsonDocument = { all() }): MongoDBTypedQuery<T> {
+        return query().filter(query)
+        //return collection.find { query(expr) }.map { gen(it) }
     }
 
     suspend fun query(): MongoDBTypedQuery<T> = MongoDBTypedQuery(this, collection.query())
@@ -167,7 +168,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
     }
 
     suspend fun findOneOrNull(query: Expr.() -> BsonDocument): T? = find(query).firstOrNull()
-    suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: error("Can't find item")
+    suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: notFound("Can't find item")
     suspend fun update(item: T, vararg props: KMutableProperty1<T, *>) {
         collection.update(
             MongoUpdate(
@@ -180,7 +181,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
         )
     }
 
-    suspend fun <R> updatePush(item: T, prop: KProperty1<T, List<R?>?>, valueToPush: R, once: Boolean = false) {
+    suspend fun <R> updatePush(item: T, prop: KProperty1<T, List<R>?>, valueToPush: R, once: Boolean = false) {
         collection.update(
             MongoUpdate(
                 mapOf(

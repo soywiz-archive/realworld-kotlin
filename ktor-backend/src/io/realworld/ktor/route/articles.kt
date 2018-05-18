@@ -27,13 +27,15 @@ fun Route.routeArticles(db: Db) {
             }
         }
 
-        get {
-            handleFeed(db)
-        }
+        authenticate(optional = true) {
+            get {
+                handleFeed(db)
+            }
 
-        // People following
-        get("/feed") {
-            handleFeed(db)
+            // People following
+            get("/feed") {
+                handleFeed(db)
+            }
         }
     }
 
@@ -114,82 +116,15 @@ suspend fun PipelineContext<Unit, ApplicationCall>.handleFeed(db: Db) {
 suspend fun Article.resolve(call: ApplicationCall, db: Db): BsonDocument {
     // @TODO: Cache or resolve all users at once
     val article = this
-    val authorName = this.author
-    val author = db.users.query()
-        .include(User::username, User::bio, User::image, User::favorites)
-        .filter { User::username eq authorName }
-        .firstOrNull() ?: User(mapOf())
 
     //println("------------------------------------")
     //println(author)
     //println(article._id)
     //println(call.getLoggedUserNameOrNull())
     return this.extractAllBut(Article::_id) + mapOf(
-        "author" to mapOf(
-            "username" to author.username,
-            "bio" to author.bio,
-            "image" to author.image,
-            "following" to false // @TODO
-        ),
+        "author" to resolveUser(this.author, db),
         "favorited" to (db.users.query().filter {
             (User::username eq call.getLoggedUserNameOrNull()) and (User::favorites contains article._id)
         }.count() != 0L)
     )
 }
-
-/*
-suspend fun test() {
-    val socket = aSocket().tcp().connect()
-    val data = socket.openReadChannel().readPacket(4).readInt()
-}
-*/
-
-fun main(args: Array<String>) {
-    val ready = CompletableDeferred<Unit>()
-    async {
-        val server = aSocket().tcp().bind(InetSocketAddress(12000))
-        while (true) {
-            println("accept")
-            ready.complete(Unit)
-            val socket = server.accept()
-            launch {
-                val rc = socket.openReadChannel()
-                val wc = socket.openWriteChannel(autoFlush = true)
-
-                var seq = 0
-                while (true) {
-                    wc.writeByte(1)
-                    wc.writeInt(1)
-                }
-            }
-        }
-    }
-
-    runBlocking {
-        ready.await()
-
-        aSocket().tcp().connect(InetSocketAddress("localhost", 12000)).use { socket ->
-            val rc = socket.openReadChannel()
-            val wc = socket.openWriteChannel(autoFlush = true)
-            while (true) {
-                check(rc.readByte() == 1.toByte()) { "byte" }
-                check(rc.readInt() == 1) { "int" }
-                check(rc.readPacket(4).readInt() == 1) { "int" }
-            }
-        }
-    }
-}
-
-
-/*
-private suspend fun ApplicationCall.respondArticles(db: Db, filter: MongoDBTypedCollection<Article>.Expr.() -> BsonDocument) {
-    val articles = db.articles.find { filter() }
-    respond(
-        mapOf(
-            "articles" to articles,
-            "articlesCount" to articles.size
-        )
-    )
-}
-*/
-

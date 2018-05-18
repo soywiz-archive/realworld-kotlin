@@ -2,6 +2,7 @@ package io.realworld.ktor.model
 
 import com.soywiz.io.ktor.client.mongodb.bson.*
 import com.soywiz.io.ktor.client.util.*
+import io.realworld.ktor.*
 import io.realworld.ktor.util.*
 import java.security.*
 
@@ -27,6 +28,21 @@ class User(data: BsonDocument = mapOf()) : MongoEntity<User>(data) {
         fun hashPassword(password: String): String =
             MessageDigest.getInstance(HASH_ALGO).digest("$HASH_PREFIX$password$HASH_POSTFIX".toByteArray(Charsets.UTF_8)).hex
     }
+}
+
+
+suspend fun resolveUser(username: String?, db: Db): BsonDocument {
+    val author = db.users.query()
+        .include(User::username, User::bio, User::image, User::favorites)
+        .filter { User::username eq username }
+        .firstOrNull() ?: User(mapOf())
+
+    return mapOf(
+        "username" to author.username,
+        "bio" to author.bio,
+        "image" to author.image,
+        "following" to false // @TODO
+    )
 }
 
 
