@@ -83,7 +83,7 @@ fun Application.mainModule(db: Db, jwt: MyJWT) {
         }
         install(Authentication) {
             jwt {
-                //schemes("Token", "Bearer")
+                authSchemes("Token", "Bearer")
                 verifier(jwt.verifier)
                 validate {
                     UserIdPrincipal(it.payload.getClaim("name").asString())

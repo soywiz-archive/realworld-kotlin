@@ -1,5 +1,6 @@
 package io.realworld.ktor.route
 
+import com.soywiz.io.ktor.client.mongodb.bson.*
 import com.soywiz.io.ktor.client.util.*
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -50,22 +51,24 @@ fun Route.routeAuth(db: Db, myjwt: MyJWT) {
     }
 
     authenticate {
-        // Current User
-        get("/user") {
-            val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
-            call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
-        }
-        // Update User
-        put("/user") {
-            val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
-            val params = call.receive<Map<String, Any?>>()
-            val updatableFields = listOf(User::email, User::bio, User::image)
-            val updatedFields = updatableFields
-                .associate { it to Dynamic { params["user"][it.name] } }
-                .filterValues { it != null }
-            for ((prop, value) in updatedFields) user.extra[prop.name] = value
-            users.update(user, *updatedFields.keys.toTypedArray())
-            call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
+        route("/user") {
+            // Current User
+            get {
+                val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
+                call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
+            }
+            // Update User
+            put {
+                val user = users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: unauthorized()
+                val params = call.receive<BsonDocument>()
+                val updatableFields = listOf(User::email, User::bio, User::image)
+                val updatedFields = updatableFields
+                    .associate { it to Dynamic { params["user"][it.name] } }
+                    .filterValues { it != null }
+                for ((prop, value) in updatedFields) user.extra[prop.name] = value
+                users.update(user, *updatedFields.keys.toTypedArray())
+                call.respond(HttpStatusCode.OK, user.userMapWithToken(myjwt))
+            }
         }
     }
 }

@@ -5,7 +5,6 @@ import com.soywiz.io.ktor.client.util.*
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.http.*
-import io.ktor.network.sockets.*
 import io.ktor.pipeline.*
 import io.ktor.request.*
 import io.ktor.response.*
@@ -13,8 +12,6 @@ import io.ktor.routing.*
 import io.realworld.ktor.*
 import io.realworld.ktor.model.*
 import io.realworld.ktor.util.*
-import kotlinx.coroutines.experimental.*
-import java.net.*
 import java.util.*
 
 fun Route.routeArticles(db: Db) {
@@ -25,16 +22,34 @@ fun Route.routeArticles(db: Db) {
                 val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound()
                 call.respond(mapOf("article" to article.resolve(call, db)))
             }
+            authenticate {
+                put {
+                    val slug = call.parameters["slug"]
+                    val params = call.receive<BsonDocument>()
+                    val particle = params["article"]
+                    val body = Dynamic { particle["body"].str }
+                    val description = Dynamic { particle["description"].str }
+                    val tagList = Dynamic { particle["tagList"].list.map { it.str } }
+                    val title = Dynamic { particle["title"].str }
+                    val article = db.articles.findOne { Article::slug eq slug }
+                    article.body = body
+                    article.description = description
+                    article.tagList = tagList
+                    article.title = title
+                    db.articles.update(article, Article::body, Article::description, Article::tagList, Article::title)
+                    call.respond(mapOf("article" to article.resolve(call, db)))
+                }
+            }
         }
 
         authenticate(optional = true) {
             get {
-                handleFeed(db)
+                handleFeed(db, feed = false)
             }
 
             // People following
             get("/feed") {
-                handleFeed(db)
+                handleFeed(db, feed = true)
             }
         }
     }
@@ -82,7 +97,7 @@ suspend fun Db.userFavorited(userName: String?, articleSlug: String?): Boolean {
     return user.favorites?.toList()?.contains(article._id) == true
 }
 
-suspend fun PipelineContext<Unit, ApplicationCall>.handleFeed(db: Db) {
+suspend fun PipelineContext<Unit, ApplicationCall>.handleFeed(db: Db, feed: Boolean) {
     val params = call.parameters
     val articleQuery = db.articles.query()
 
