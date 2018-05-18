@@ -8,17 +8,12 @@ import java.security.*
 
 class User(data: BsonDocument = mapOf()) : MongoEntity<User>(data) {
     var email: String? by Extra { null }
-    //var token: String? by Extra { null }
     var username: String? by Extra { null }
     var passwordHash: String? by Extra { null }
     var bio: String? by Extra { null }
     var image: String by Extra { "dummy.png" }
     var favorites: List<BsonObjectId>? by Extra { null }
     var following: List<String>? by Extra { null }
-
-    //var password: String
-    //    set(value) = run { passwordHash = hashPassword(value) }
-    //    get() = "****" // Can't retrieve password
 
     companion object {
         val HASH_ALGO = "SHA-256"
@@ -44,15 +39,3 @@ suspend fun resolveUser(username: String?, db: Db): BsonDocument {
         "following" to false // @TODO
     )
 }
-
-
-/*
-//@Serializable
-data class User(
-    val email: String,
-    val token: String,
-    val username: String,
-    val bio: String,
-    val image: String
-)
-*/

@@ -15,16 +15,7 @@ import io.realworld.ktor.route.*
 import io.realworld.ktor.util.*
 import kotlinx.coroutines.experimental.*
 
-fun main(args: Array<String>): Unit {
-
-    //val user = User().apply {
-    //    email = "test"
-    //}
-
-    //println(user)
-
-    io.ktor.server.netty.DevelopmentEngine.main(args)
-}
+fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
 
 open class MyJWT(val secret: String) {
     private val algorithm = Algorithm.HMAC256(secret)

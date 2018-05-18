@@ -168,7 +168,7 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
     }
 
     suspend fun findOneOrNull(query: Expr.() -> BsonDocument): T? = find(query).firstOrNull()
-    suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: notFound("Can't find item")
+    suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: notFound("Can't find item in ${collection.collection}")
     suspend fun update(item: T, vararg props: KMutableProperty1<T, *>) {
         collection.update(
             MongoUpdate(

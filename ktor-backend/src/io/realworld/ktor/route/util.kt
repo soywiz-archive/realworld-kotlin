@@ -5,5 +5,3 @@ import io.ktor.auth.*
 
 fun ApplicationCall.getLoggedUserNameOrNull() = authentication.principal<UserIdPrincipal>()?.name
 fun ApplicationCall.getLoggedUserName() = getLoggedUserNameOrNull() ?: error("User not logged")
-
-

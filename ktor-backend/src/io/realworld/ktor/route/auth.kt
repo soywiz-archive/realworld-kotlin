@@ -26,7 +26,8 @@ fun Route.routeAuth(db: Db, myjwt: MyJWT) {
                 passwordHash = User.hashPassword(post.user.password)
                 bio = ""
                 //image = "https://static.productionready.io/images/smiley-cyrus.jpg"
-                val emailMd5 = Hex.encodeLower(MessageDigest.getInstance("MD5").digest((email ?: "").toByteArray(Charsets.UTF_8)))
+                val emailMd5 =
+                    Hex.encodeLower(MessageDigest.getInstance("MD5").digest((email ?: "").toByteArray(Charsets.UTF_8)))
                 image = "https://s.gravatar.com/avatar/$emailMd5?s=80"
             }
             users.insert(user)
@@ -74,12 +75,9 @@ fun Route.routeAuth(db: Db, myjwt: MyJWT) {
 }
 
 private fun User.userMapWithToken(myjwt: MyJWT) = mapOf(
-    "user" to this.extract(
-        io.realworld.ktor.model.User::email,
-        io.realworld.ktor.model.User::username,
-        io.realworld.ktor.model.User::bio,
-        io.realworld.ktor.model.User::image
-    ) + mapOf("token" to myjwt.sign(username!!))
+    "user" to this.extract(User::email, User::username, User::bio, User::image) + mapOf(
+        "token" to myjwt.sign(username!!)
+    )
 )
 
 class PostUser(val user: PostUserUser)

@@ -17,28 +17,27 @@ import java.util.*
 fun Route.routeArticles(db: Db) {
     route("/articles") {
         route("/{slug}") {
+            fun ApplicationCall.slug() = parameters["slug"]
             get {
-                val slug = call.parameters["slug"]
-                val article = db.articles.findOneOrNull { Article::slug eq slug } ?: notFound()
+                val slug = call.slug()
+                val article = db.articles.findOne { Article::slug eq slug }
                 call.respond(mapOf("article" to article.resolve(call, db)))
             }
             authenticate {
                 put {
-                    val now = Date()
-                    val slug = call.parameters["slug"]
+                    val slug = call.slug()
                     val params = call.receive<BsonDocument>()
-                    val particle = params["article"]
-                    val body = Dynamic { particle["body"].str }
-                    val description = Dynamic { particle["description"].str }
-                    val tagList = Dynamic { particle["tagList"].list.map { it.str } }
-                    val title = Dynamic { particle["title"].str }
+                    val paramsArticle = params["article"]
                     val article = db.articles.findOne { Article::slug eq slug }
-                    article.body = body
-                    article.description = description
-                    article.tagList = tagList
-                    article.title = title
-                    article.updatedAt = ISO8601.format(now)
-                    db.articles.update(article, Article::body, Article::description, Article::tagList, Article::title, Article::updatedAt)
+                    db.articles.update(article.apply {
+                        body = Dynamic { paramsArticle["body"].str }
+                        description = Dynamic { paramsArticle["description"].str }
+                        tagList = Dynamic { paramsArticle["tagList"].list.map { it.str } }
+                        title = Dynamic { paramsArticle["title"].str }
+                        updatedAt = ISO8601.format(Date())
+                    },
+                        Article::body, Article::description, Article::tagList, Article::title, Article::updatedAt
+                    )
                     call.respond(mapOf("article" to article.resolve(call, db)))
                 }
             }
@@ -66,7 +65,7 @@ fun Route.routeArticles(db: Db) {
                 when (call.request.httpMethod) {
                     HttpMethod.Post -> db.users.updatePush(user, User::favorites, article._id, once = true)
                     HttpMethod.Delete -> db.users.updatePull(user, User::favorites, article._id)
-                    else -> notFound()
+                    else -> methodNotAllowed()
                 }
 
                 article.favoritesCount = db.users.query().filter { User::favorites contains article._id }.count()
@@ -78,7 +77,7 @@ fun Route.routeArticles(db: Db) {
         post("/articles") {
             val post = call.receive<BsonDocument>()
             val now = Date()
-            val user = db.users.findOneOrNull { User::username eq call.getLoggedUserName() } ?: notFound("user")
+            val user = db.users.findOne { User::username eq call.getLoggedUserName() }
             val article = Article(post["article"] as BsonDocument).apply {
                 ensureNotNull(Article::title, Article::description, Article::body, Article::tagList)
                 slug = Article.slugify(title ?: "")

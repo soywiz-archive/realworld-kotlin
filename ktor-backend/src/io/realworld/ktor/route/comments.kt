@@ -15,38 +15,34 @@ import java.util.*
 fun Route.routeArticleComments(db: Db) {
     route("/articles") {
         route("/{slug}") {
+            fun ApplicationCall.slug() = parameters["slug"]
             route("/comments") {
                 get {
-                    // @TODO: Sort by date
-                    val slug = call.parameters["slug"]
                     val comments = db.comments
-                        .find { Comment::article eq slug }
+                        .find { Comment::article eq call.slug() }
                         .sortedBy(Comment::updatedAt to -1)
 
                     call.respond(mapOf("comments" to comments.map { it.resolve(db) }.toList()))
                 }
                 authenticate {
                     post {
-                        val slug = call.parameters["slug"]
                         val post = call.receive<BsonDocument>()
                         val now = Date()
                         val comment = Comment().apply {
                             author = call.getLoggedUserName()
                             body = Dynamic { post["comment"]["body"].str }
-                            createdAt = ISO8601.format(now)
-                            updatedAt = ISO8601.format(now)
-                            article = slug
+                            createdAt = now.format(ISO8601)
+                            updatedAt = now.format(ISO8601)
+                            article = call.slug()
                         }
 
                         db.comments.insert(comment, writeConcern = mapOf("w" to 1))
                         call.respond(mapOf("comment" to comment.resolve(db)))
                     }
                     delete("/{commentId}") {
-                        val slug = call.parameters["slug"]
                         val commentId = call.parameters["commentId"].toString()
-                        val comment = db.comments.findOneOrNull { Comment::_id eq BsonObjectId(Hex.decode(commentId)) }
-                                ?: notFound()
-                        if (comment.article != slug) notFound()
+                        val comment = db.comments.findOne { Comment::_id eq BsonObjectId(Hex.decode(commentId)) }
+                        if (comment.article != call.slug()) notFound()
                         if (comment.author != call.getLoggedUserName()) unauthorized()
                         db.comments.delete { Comment::_id eq comment._id }
                         call.respond(mapOf<String, Any?>())
