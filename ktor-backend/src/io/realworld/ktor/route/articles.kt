@@ -24,6 +24,7 @@ fun Route.routeArticles(db: Db) {
             }
             authenticate {
                 put {
+                    val now = Date()
                     val slug = call.parameters["slug"]
                     val params = call.receive<BsonDocument>()
                     val particle = params["article"]
@@ -36,7 +37,8 @@ fun Route.routeArticles(db: Db) {
                     article.description = description
                     article.tagList = tagList
                     article.title = title
-                    db.articles.update(article, Article::body, Article::description, Article::tagList, Article::title)
+                    article.updatedAt = ISO8601.format(now)
+                    db.articles.update(article, Article::body, Article::description, Article::tagList, Article::title, Article::updatedAt)
                     call.respond(mapOf("article" to article.resolve(call, db)))
                 }
             }
@@ -99,21 +101,24 @@ suspend fun Db.userFavorited(userName: String?, articleSlug: String?): Boolean {
 
 suspend fun PipelineContext<Unit, ApplicationCall>.handleFeed(db: Db, feed: Boolean) {
     val params = call.parameters
-    val articleQuery = db.articles.query()
 
     val articles = when {
+        feed -> {
+            val loggedUser = db.users.findOne { User::username eq call.getLoggedUserName() }
+            db.articles.find { Article::author _in loggedUser.following }
+        }
         params["favorited"] != null -> {
             val user = db.users.findOneOrNull { User::username eq params["favorited"] } ?: notFound()
-            if (user.favorites != null) articleQuery.filter { Article::_id _in user.favorites } else articleQuery.filter { Article::_id eq "invalid" }
+            if (user.favorites != null) db.articles.find { Article::_id _in user.favorites } else db.articles.find { Article::_id eq "invalid" }
 
         }
-        params["author"] != null -> articleQuery.filter { Article::author eq params["author"] }
-        params["tag"] != null -> articleQuery.filter { Article::tagList contains params["tag"] }
-        else -> articleQuery
+        params["author"] != null -> db.articles.find { Article::author eq params["author"] }
+        params["tag"] != null -> db.articles.find { Article::tagList contains params["tag"] }
+        else -> db.articles.query()
     }
 
     val limit = (params["limit"]?.toIntOrNull() ?: 10).clamp(1, 20)
-    val offset = params["offset"]?.toIntOrNull() ?: 0
+    val offset = (params["offset"]?.toIntOrNull() ?: 0).clamp(0, 5000)
 
     call.respond(
         mapOf(

@@ -15,8 +15,13 @@ class Db private constructor(mongo: MongoDB) {
             users = db["users"].typed { User(it) }
                 .ensureIndex(User::email to +1, unique = true)
                 .ensureIndex(User::username to +1, unique = true)
+
             articles = db["articles"].typed { Article(it) }
+                .ensureIndex(Article::slug to +1, unique = true)
                 .ensureIndex(Article::updatedAt to -1)
+                .ensureIndex(Article::tagList to +1, Article::updatedAt to -1, name = "tag_updated")
+                .ensureIndex(Article::author to +1, Article::updatedAt to -1, name = "author_updated")
+
             comments = db["comments"].typed { Comment(it) }
         }
     }
