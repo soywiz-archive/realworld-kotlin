@@ -1,10 +1,18 @@
-## Ktorbased realworld backend
+# Ktorbased realworld backend
+
+## Description
+
+* This is a realworld backend implementation using ktor.
+* It uses a mongodb client implemented using kotlin coroutines (<https://github.com/soywiz/ktor-cio-clients/tree/master/ktor-client-cio-mongodb>).
+* This first implementation uses untyped extensible objects backed by a map using Kotlin's properties, so no reflection or serialization is used. A typed version will come later.
+
+## Running
 
 ### MongoDB
 
 You have to execute a mongodb server in your machine in the default 27017 port without authentication..
 
-### Ktor 0.9.2-SNAPSHOT with authentication optionalbranch
+### Compile Ktor 0.9.2-SNAPSHOT with authentication optionalbranch from source
 
 You have to download ktor <https://github.com/ktorio/ktor> and to checkout the `authenticate.optional` branch and execute `./gradlew install`
 
