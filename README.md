@@ -1,10 +1,10 @@
-## Ktorbased realworld backend
+## Ktorbased realworld backend
 
 ### MongoDB
 
 You have to execute a mongodb server in your machine in the default 27017 port without authentication..
 
-### Ktor 0.9.2-SNAPSHOT with authentication optionalbranch
+### Ktor 0.9.2-SNAPSHOT with authentication optionalbranch
 
 You have to download ktor <https://github.com/ktorio/ktor> and to checkout the `authenticate.optional` branch and execute `./gradlew install`
 
