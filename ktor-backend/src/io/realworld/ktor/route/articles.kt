@@ -104,7 +104,8 @@ suspend fun PipelineContext<Unit, ApplicationCall>.handleFeed(db: Db, feed: Bool
     val articles = when {
         feed -> {
             val loggedUser = db.users.findOne { User::username eq call.getLoggedUserName() }
-            db.articles.find { Article::author _in loggedUser.following }
+            val following = loggedUser.following ?: listOf()
+            db.articles.find { Article::author _in following }
         }
         params["favorited"] != null -> {
             val user = db.users.findOneOrNull { User::username eq params["favorited"] } ?: notFound()

@@ -9,7 +9,7 @@ import io.realworld.ktor.model.*
 fun Route.routeTags(db: Db) {
     get("/tags") {
         call.respond(mapOf(
-            "tags" to (db.articles.distinct(Article::tagList) as List<Any?>).filter { it is String }
+            "tags" to (db.articles.distinct(Article::tagList) as List<Any?>).filterIsInstance<String>()
         ))
     }
 }

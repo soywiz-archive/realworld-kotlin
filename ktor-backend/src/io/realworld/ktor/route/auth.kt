@@ -36,7 +36,7 @@ fun Route.routeAuth(db: Db, myjwt: MyJWT) {
             e.printStackTrace()
             call.respond(
                 HttpStatusCode(422, "Unprocessable Entity"),
-                mapOf("errors" to mapOf("body" to "Unexpected error"))
+                mapOf("errors" to mapOf("body" to e.message))
             )
         }
     }
