@@ -1,10 +1,8 @@
 buildscript {
-    ext.kotlin_version = '1.2.41'
-    //ext.serialization_version = '0.5.0'
-    ext.ktor_version = '0.9.2-SNAPSHOT'
-    //ext.ktor_version = '0.9.2'
+    ext.kotlin_version = '1.2.50'
+    ext.ktor_version = '0.9.3'
     ext.logback_version = '1.2.1'
-    ext.soywiz_cio_version = '0.0.6'
+    ext.cio_version = '0.1.0'
 
     repositories {
         jcenter()
@@ -39,7 +37,7 @@ repositories {
     jcenter()
     maven { url "https://kotlin.bintray.com/ktor" }
     maven { url "https://kotlin.bintray.com/kotlinx" }
-    maven { url "http://dl.bintray.com/soywiz/soywiz/" }
+    maven { url "https://dl.bintray.com/soywiz/soywiz/" }
 }
 
 dependencies {
@@ -50,7 +48,7 @@ dependencies {
     compile "io.ktor:ktor-auth-jwt:$ktor_version"
     compile "io.ktor:ktor-jackson:$ktor_version"
 
-    compile "com.soywiz.io.ktor:ktor-client-cio-mongodb:$soywiz_cio_version"
+    compile "io.ktor.experimental.clients:ktor-client-cio-mongodb:$cio_version"
 
     compile "ch.qos.logback:logback-classic:$logback_version"
 

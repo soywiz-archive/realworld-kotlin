@@ -1,9 +1,9 @@
 package io.realworld.ktor.route
 
-import com.soywiz.io.ktor.client.mongodb.bson.*
-import com.soywiz.io.ktor.client.util.*
 import io.ktor.application.*
 import io.ktor.auth.*
+import io.ktor.experimental.client.mongodb.bson.*
+import io.ktor.experimental.client.util.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*

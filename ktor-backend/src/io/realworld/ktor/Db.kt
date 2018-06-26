@@ -1,6 +1,6 @@
 package io.realworld.ktor
 
-import com.soywiz.io.ktor.client.mongodb.*
+import io.ktor.experimental.client.mongodb.*
 import io.realworld.ktor.model.*
 import io.realworld.ktor.util.*
 

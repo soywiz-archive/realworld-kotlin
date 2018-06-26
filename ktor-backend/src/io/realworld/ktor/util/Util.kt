@@ -1,6 +1,6 @@
 package io.realworld.ktor.util
 
-import com.soywiz.io.ktor.client.mongodb.bson.*
+import io.ktor.experimental.client.mongodb.bson.*
 import kotlin.reflect.*
 
 interface Extra {

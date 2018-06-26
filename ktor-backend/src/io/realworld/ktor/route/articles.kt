@@ -1,9 +1,9 @@
 package io.realworld.ktor.route
 
-import com.soywiz.io.ktor.client.mongodb.bson.*
-import com.soywiz.io.ktor.client.util.*
 import io.ktor.application.*
 import io.ktor.auth.*
+import io.ktor.experimental.client.mongodb.bson.*
+import io.ktor.experimental.client.util.*
 import io.ktor.http.*
 import io.ktor.pipeline.*
 import io.ktor.request.*
@@ -29,13 +29,14 @@ fun Route.routeArticles(db: Db) {
                     val params = call.receive<BsonDocument>()
                     val paramsArticle = params["article"]
                     val article = db.articles.findOne { Article::slug eq slug }
-                    db.articles.update(article.apply {
-                        body = Dynamic { paramsArticle["body"].str }
-                        description = Dynamic { paramsArticle["description"].str }
-                        tagList = Dynamic { paramsArticle["tagList"].list.map { it.str } }
-                        title = Dynamic { paramsArticle["title"].str }
-                        updatedAt = ISO8601.format(Date())
-                    },
+                    db.articles.update(
+                        article.apply {
+                            body = Dynamic { paramsArticle["body"].str }
+                            description = Dynamic { paramsArticle["description"].str }
+                            tagList = Dynamic { paramsArticle["tagList"].list.map { it.str } }
+                            title = Dynamic { paramsArticle["title"].str }
+                            updatedAt = ISO8601.format(Date())
+                        },
                         Article::body, Article::description, Article::tagList, Article::title, Article::updatedAt
                     )
                     call.respond(mapOf("article" to article.resolve(call, db)))

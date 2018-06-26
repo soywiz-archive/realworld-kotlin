@@ -1,7 +1,7 @@
 package io.realworld.ktor.model
 
-import com.soywiz.io.ktor.client.mongodb.bson.*
-import com.soywiz.io.ktor.client.util.*
+import io.ktor.experimental.client.mongodb.bson.*
+import io.ktor.experimental.client.util.*
 import io.realworld.ktor.*
 import io.realworld.ktor.util.*
 import java.security.*

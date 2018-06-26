@@ -1,13 +1,5 @@
 package io.realworld.ktor.model
 
-import io.ktor.server.testing.*
-import io.realworld.ktor.*
-import kotlinx.coroutines.experimental.*
-import org.arquillian.cube.docker.impl.client.containerobject.dsl.*
-import org.jboss.arquillian.junit.*
-import org.junit.*
-import org.junit.runner.*
-
 /*
 @RunWith(Arquillian::class)
 class IntegrationTest {

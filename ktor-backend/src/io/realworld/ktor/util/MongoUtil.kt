@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.*
 import com.fasterxml.jackson.databind.*
 import com.fasterxml.jackson.databind.annotation.*
 import com.fasterxml.jackson.databind.ser.std.*
-import com.soywiz.io.ktor.client.mongodb.*
-import com.soywiz.io.ktor.client.mongodb.bson.*
-import com.soywiz.io.ktor.client.util.*
+import io.ktor.experimental.client.mongodb.*
+import io.ktor.experimental.client.mongodb.bson.*
+import io.ktor.experimental.client.util.*
 import kotlin.reflect.*
 
 @JsonSerialize(using = MongoEntitySerializer::class)
@@ -71,7 +71,8 @@ data class MongoDBTypedQuery<T : MongoEntity<T>>(val collection: MongoDBTypedCol
     fun exclude(vararg props: KProperty1<T, *>) =
         copy(query = query.exclude(*props.map { it.name }.toTypedArray()))
 
-    fun sortedBy(vararg pairs: Pair<KProperty1<T, *>, Int>) = copy(query = query.sortedBy(*pairs.map { it.first.name to it.second }.toTypedArray()))
+    fun sortedBy(vararg pairs: Pair<KProperty1<T, *>, Int>) =
+        copy(query = query.sortedBy(*pairs.map { it.first.name to it.second }.toTypedArray()))
 
     override suspend fun iterator(): SuspendingIterator<T> = query.map { collection.gen(it) }.iterator()
 
@@ -168,7 +169,9 @@ class MongoDBTypedCollection<T : MongoEntity<T>>(val gen: (BsonDocument) -> T, v
     }
 
     suspend fun findOneOrNull(query: Expr.() -> BsonDocument): T? = find(query).firstOrNull()
-    suspend fun findOne(query: Expr.() -> BsonDocument): T = find(query).firstOrNull() ?: notFound("Can't find item in ${collection.collection}")
+    suspend fun findOne(query: Expr.() -> BsonDocument): T =
+        find(query).firstOrNull() ?: notFound("Can't find item in ${collection.collection}")
+
     suspend fun update(item: T, vararg props: KMutableProperty1<T, *>) {
         collection.update(
             MongoUpdate(

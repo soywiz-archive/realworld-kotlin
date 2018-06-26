@@ -1,7 +1,7 @@
 package io.realworld.ktor.model
 
-import org.junit.Test
-import kotlin.test.*
+import org.junit.*
+import org.junit.Assert.*
 
 class ArticleTest {
     @Test
